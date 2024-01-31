@@ -1,7 +1,7 @@
 use crate::api::auth::decode_jwt;
 use crate::models::login_response::{Response, ResponseBody};
 use crate::models::network_response::NetworkResponse;
-use jsonwebtoken::errors::{Error, ErrorKind};
+use jsonwebtoken::errors::Error;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::{Deserialize, Serialize};

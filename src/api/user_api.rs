@@ -1,9 +1,16 @@
+use std::borrow::Borrow;
+
 use crate::{
     models::{jwt::JWT, network_response::NetworkResponse, user_model::User},
     repository::mongodb_repo::MongoRepo,
 };
-use mongodb::{bson::oid::ObjectId, results::InsertOneResult};
-use rocket::{http::Status, serde::json::Json, State};
+use mongodb::results::InsertOneResult;
+use rocket::{
+    http::{ext::IntoCollection, Status},
+    serde::json::Json,
+    State,
+};
+use uuid::Uuid;
 
 #[post("/user", data = "<new_user>")]
 pub fn create_user(
@@ -13,7 +20,7 @@ pub fn create_user(
 ) -> Result<Json<InsertOneResult>, NetworkResponse> {
     let key = key?;
     let data = User {
-        id: None,
+        id: Some(Uuid::new_v4().to_string()),
         first_name: new_user.first_name.to_owned(),
         last_name: new_user.last_name.to_owned(),
         email: new_user.email.to_owned(),
@@ -29,42 +36,38 @@ pub fn create_user(
     }
 }
 
-#[get("/user/<oid>")]
-pub fn get_user(db: &State<MongoRepo>, oid: String) -> Result<Json<User>, Status> {
-    let id = oid;
+#[get("/user/<id>")]
+pub fn get_user(db: &State<MongoRepo>, id: String) -> Result<Json<User>, Status> {
+    let id = id;
     if id.is_empty() {
         return Err(Status::BadRequest);
     };
-    let user_detail = db.get_user(&id);
+    let user_detail = db.get_user(id);
     match user_detail {
-        Ok(user) => Ok(Json(user)),
+        Ok(user) => Ok(Json(User::from(user))),
         Err(_) => Err(Status::InternalServerError),
     }
 }
 
-#[put("/user/<oid>", data = "<new_user>")]
+#[put("/user/<id>", data = "<new_user>")]
 pub fn update_user(
     db: &State<MongoRepo>,
-    oid: String,
+    id: String,
     new_user: Json<User>,
 ) -> Result<Json<User>, Status> {
-    let id = oid;
-    if id.is_empty() {
-        return Err(Status::BadRequest);
-    };
     let data = User {
-        id: Some(ObjectId::parse_str(&id).unwrap()),
+        id: Some(id.clone()),
         first_name: new_user.first_name.to_owned(),
         last_name: new_user.last_name.to_owned(),
         email: new_user.email.to_owned(),
         password: new_user.password.to_owned(),
         role: new_user.role.to_owned(),
     };
-    let update_result = db.update_user(&id, data);
+    let update_result = db.update_user(data);
     match update_result {
         Ok(update) => {
             if update.matched_count == 1 {
-                let updated_user_info = db.get_user(&id);
+                let updated_user_info = db.get_user(id);
                 return match updated_user_info {
                     Ok(user) => Ok(Json(user)),
                     Err(_) => Err(Status::InternalServerError),
@@ -77,17 +80,13 @@ pub fn update_user(
     }
 }
 
-#[delete("/user/<oid>")]
-pub fn delete_user(db: &State<MongoRepo>, oid: String) -> Result<Json<&str>, Status> {
-    let id = oid;
-    if id.is_empty() {
-        return Err(Status::BadRequest);
-    };
-    let result = db.delete_user(&id);
+#[delete("/user/<id>")]
+pub fn delete_user(db: &State<MongoRepo>, id: String) -> Result<Status, Status> {
+    let result = db.delete_user(id);
     match result {
         Ok(res) => {
             if res.deleted_count == 1 {
-                return Ok(Json("User successfully deleted!"));
+                return Ok(Status::Ok);
             } else {
                 return Err(Status::NotFound);
             }

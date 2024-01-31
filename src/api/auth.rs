@@ -14,8 +14,8 @@ pub fn login(db: &State<MongoRepo>, usercreds: Json<LoginRequest>) -> Result<Str
     let user = db.get_user_by_login(usercreds.into_inner());
     match user {
         Ok(user) => {
-            let id = user.id.unwrap().to_hex();
-            match create_jwt(id) {
+            let id = user.id;
+            match create_jwt(id.unwrap()) {
                 Ok(token) => Ok(token),
                 Err(_) => Err(Status::InternalServerError),
             }

@@ -1,4 +1,4 @@
-use std::env;
+use std::{borrow::Borrow, env};
 
 use crate::models::{login_request::LoginRequest, user_model::User};
 use mongodb::{
@@ -6,6 +6,7 @@ use mongodb::{
     results::{DeleteResult, InsertOneResult, UpdateResult},
     sync::{Client, Collection},
 };
+use uuid::Uuid;
 
 pub struct MongoRepo {
     user_col: Collection<User>,
@@ -22,7 +23,7 @@ impl MongoRepo {
 
     pub fn create_user(&self, new_user: User) -> Result<InsertOneResult, Error> {
         let new_doc = User {
-            id: None,
+            id: Some(Uuid::new_v4().to_string()),
             first_name: new_user.first_name,
             last_name: new_user.last_name,
             email: new_user.email,
@@ -37,8 +38,8 @@ impl MongoRepo {
         Ok(user)
     }
 
-    pub fn get_user(&self, id: &String) -> Result<User, Error> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
+    pub fn get_user(&self, id: String) -> Result<User, Error> {
+        let obj_id = id;
         let filter = doc! {"_id": obj_id};
         let user_detail = self
             .user_col
@@ -48,13 +49,13 @@ impl MongoRepo {
         Ok(user_detail.unwrap())
     }
 
-    pub fn update_user(&self, id: &String, new_user: User) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
-        let filter = doc! {"_id": obj_id};
+    pub fn update_user(&self, new_user: User) -> Result<UpdateResult, Error> {
+        let id = new_user.id;
+        let filter = doc! {"_id": &id};
         let new_doc = doc! {
             "$set":
                 {
-                    "id": new_user.id,
+                    "id": id,
                     "first_name": new_user.first_name,
                     "last_name": new_user.last_name,
                     "email": new_user.email,
@@ -70,9 +71,8 @@ impl MongoRepo {
         Ok(updated_doc)
     }
 
-    pub fn delete_user(&self, id: &String) -> Result<DeleteResult, Error> {
-        let obj_id = ObjectId::parse_str(id).unwrap();
-        let filter = doc! {"_id": obj_id};
+    pub fn delete_user(&self, id: String) -> Result<DeleteResult, Error> {
+        let filter = doc! {"_id": id};
         let user_detail = self
             .user_col
             .delete_one(filter, None)
