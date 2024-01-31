@@ -12,20 +12,26 @@ use rocket::{
 };
 use uuid::Uuid;
 
+use super::auth::check_permission;
+
 #[post("/user", data = "<new_user>")]
 pub fn create_user(
     key: Result<JWT, NetworkResponse>,
     db: &State<MongoRepo>,
     new_user: Json<User>,
 ) -> Result<Json<InsertOneResult>, NetworkResponse> {
-    let key = key?;
+    if !check_permission(key?, "users.create".to_owned()) {
+        return Err(NetworkResponse::Unauthorized(
+            ("You are unauthorized to access this resource.".to_owned()),
+        ));
+    }
     let data = User {
         id: Some(Uuid::new_v4().to_string()),
         first_name: new_user.first_name.to_owned(),
         last_name: new_user.last_name.to_owned(),
         email: new_user.email.to_owned(),
         password: new_user.password.to_owned(),
-        role: new_user.role.to_owned(),
+        permissions: new_user.permissions.to_owned(),
     };
     let user_detail = db.create_user(data);
     match user_detail {
@@ -61,7 +67,7 @@ pub fn update_user(
         last_name: new_user.last_name.to_owned(),
         email: new_user.email.to_owned(),
         password: new_user.password.to_owned(),
-        role: new_user.role.to_owned(),
+        permissions: new_user.permissions.to_owned(),
     };
     let update_result = db.update_user(data);
     match update_result {
