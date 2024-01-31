@@ -1,8 +1,6 @@
 use std::env;
-extern crate dotenv;
-use dotenv::dotenv;
 
-use crate::models::user_model::User;
+use crate::models::{login_request::LoginRequest, user_model::User};
 use mongodb::{
     bson::{doc, extjson::de::Error, oid::ObjectId},
     results::{DeleteResult, InsertOneResult, UpdateResult},
@@ -15,11 +13,7 @@ pub struct MongoRepo {
 
 impl MongoRepo {
     pub fn init() -> Self {
-        dotenv().ok();
-        let uri = match env::var("MONGO_URI") {
-            Ok(v) => v.to_string(),
-            Err(_) => format!("Error loading mongodb connstring"),
-        };
+        let uri = env::var("MONGO_URI").expect("MONGO_URI must be set.");
         let client = Client::with_uri_str(uri).unwrap();
         let auth_db = client.database("auth");
         let user_col: Collection<User> = auth_db.collection("users");
@@ -33,6 +27,7 @@ impl MongoRepo {
             last_name: new_user.last_name,
             email: new_user.email,
             password: new_user.password,
+            role: new_user.role,
         };
         let user = self
             .user_col
@@ -63,7 +58,8 @@ impl MongoRepo {
                     "first_name": new_user.first_name,
                     "last_name": new_user.last_name,
                     "email": new_user.email,
-                    "password": new_user.password
+                    "password": new_user.password,
+                    "role": new_user.role,
                 },
         };
         let updated_doc = self
@@ -93,5 +89,15 @@ impl MongoRepo {
             .expect("Error getting list of users");
         let users = cursors.map(|doc| doc.unwrap()).collect();
         Ok(users)
+    }
+
+    pub fn get_user_by_login(&self, login: LoginRequest) -> Result<User, Error> {
+        let filter = doc! {"$and": [{"email": login.username},{"password": login.password}]};
+        let user_detail = self
+            .user_col
+            .find_one(filter, None)
+            .ok()
+            .expect("Error getting user's detail");
+        Ok(user_detail.unwrap())
     }
 }

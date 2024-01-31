@@ -1,23 +1,31 @@
-use crate::{models::user_model::User, repository::mongodb_repo::MongoRepo};
+use crate::{
+    models::{jwt::JWT, network_response::NetworkResponse, user_model::User},
+    repository::mongodb_repo::MongoRepo,
+};
 use mongodb::{bson::oid::ObjectId, results::InsertOneResult};
 use rocket::{http::Status, serde::json::Json, State};
 
 #[post("/user", data = "<new_user>")]
 pub fn create_user(
+    key: Result<JWT, NetworkResponse>,
     db: &State<MongoRepo>,
     new_user: Json<User>,
-) -> Result<Json<InsertOneResult>, Status> {
+) -> Result<Json<InsertOneResult>, NetworkResponse> {
+    let key = key?;
     let data = User {
         id: None,
         first_name: new_user.first_name.to_owned(),
         last_name: new_user.last_name.to_owned(),
         email: new_user.email.to_owned(),
         password: new_user.password.to_owned(),
+        role: new_user.role.to_owned(),
     };
     let user_detail = db.create_user(data);
     match user_detail {
         Ok(user) => Ok(Json(user)),
-        Err(_) => Err(Status::InternalServerError),
+        Err(_) => Err(NetworkResponse::BadRequest(
+            "Error retrieving user details.".to_owned(),
+        )),
     }
 }
 
@@ -50,6 +58,7 @@ pub fn update_user(
         last_name: new_user.last_name.to_owned(),
         email: new_user.email.to_owned(),
         password: new_user.password.to_owned(),
+        role: new_user.role.to_owned(),
     };
     let update_result = db.update_user(&id, data);
     match update_result {
