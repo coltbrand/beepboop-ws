@@ -4,3 +4,4 @@ pub mod login_response;
 pub mod network_response;
 pub mod permission;
 pub mod user_model;
+pub mod who_am_i_response;

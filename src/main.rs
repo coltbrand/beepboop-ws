@@ -7,11 +7,10 @@ use dotenv::dotenv;
 #[macro_use]
 extern crate rocket;
 use api::{
-    auth::login,
+    auth::{login, who_am_i},
     user_api::{create_user, delete_user, get_all_users, get_user, update_user},
 };
 use repository::mongodb_repo::MongoRepo;
-use rocket::Ignite;
 use rocket::{get, http::Status, serde::json::Json};
 use webserverconfig::cors::CORS;
 
@@ -33,7 +32,8 @@ fn rocket() -> _ {
             update_user,
             delete_user,
             get_all_users,
-            login
+            login,
+            who_am_i
         ],
     )
 }

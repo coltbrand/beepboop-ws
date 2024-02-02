@@ -11,3 +11,10 @@ pub enum ResponseBody {
 pub struct Response {
     pub body: ResponseBody,
 }
+
+#[derive(Serialize)]
+pub struct TokenResponse {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub expiration: i64,
+}
